@@ -12,14 +12,14 @@ This add-in scans your entire design tree, flags every component with orphan bod
 
 ## Installation
 
-Download or clone this repository, then copy the `FusionOrphanBodyFinder` folder to your Fusion 360 add-ins directory:
-
 **macOS:**
 ```
-~/Library/Application Support/Autodesk/Autodesk Fusion 360/API/AddIns/
+cd ~/Library/Application\ Support/Autodesk/Autodesk\ Fusion\ 360/API/AddIns/
+git clone https://github.com/erikbuild/FusionOrphanBodyFinder.git
 ```
 
 **Windows:**
+Download or clone this repository, then copy the `FusionOrphanBodyFinder` folder to your Fusion 360 add-ins directory:
 ```
 %AppData%\Autodesk\Autodesk Fusion 360\API\AddIns\
 ```
