@@ -1,11 +1,14 @@
 import adsk.core
 import adsk.fusion
 import traceback
+import json
 import os
 
 _app = None
 _ui = None
 _handlers = []
+_active_panel_id = None
+_custom_panel_id = None
 
 CMD_ID = 'FusionOrphanBodyFinderCmd'
 CMD_NAME = 'Find Orphan Bodies'
@@ -13,12 +16,41 @@ CMD_DESCRIPTION = 'Find components that contain both subcomponents and direct bo
 PANEL_ID = 'InspectPanel'
 FALLBACK_PANEL_ID = 'SolidScriptsAddinsPanel'
 
+WORKSPACE_ID = 'FusionSolidEnvironment'
+TAB_ID = 'SolidTab'
+
+
+def load_config():
+    config_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'config.json')
+    try:
+        with open(config_path, 'r') as f:
+            return json.load(f)
+    except (FileNotFoundError, ValueError):
+        return {}
+
+
+def get_or_create_custom_panel(panel_id, panel_name):
+    try:
+        workspace = _ui.workspaces.itemById(WORKSPACE_ID)
+        if not workspace:
+            return None
+        tab = workspace.toolbarTabs.itemById(TAB_ID)
+        if not tab:
+            return None
+        panel = tab.toolbarPanels.itemById(panel_id)
+        if not panel:
+            panel = tab.toolbarPanels.add(panel_id, panel_name)
+        return panel
+    except:
+        return None
+
 
 def run(context):
-    global _app, _ui
+    global _app, _ui, _active_panel_id, _custom_panel_id
     try:
         _app = adsk.core.Application.get()
         _ui = _app.userInterface
+        config = load_config()
 
         cmd_def = _ui.commandDefinitions.itemById(CMD_ID)
         if cmd_def:
@@ -33,10 +65,20 @@ def run(context):
         cmd_def.commandCreated.add(on_created)
         _handlers.append(on_created)
 
-        panel = _ui.allToolbarPanels.itemById(PANEL_ID)
+        panel = None
+        if config.get('use_custom_panel'):
+            panel_id = config.get('panel_id', 'ErikBuildPlugins_Panel')
+            panel_name = config.get('panel_name', 'ERIKBUILD PLUGINS')
+            _custom_panel_id = panel_id
+            panel = get_or_create_custom_panel(panel_id, panel_name)
+
+        if not panel:
+            panel = _ui.allToolbarPanels.itemById(PANEL_ID)
         if not panel:
             panel = _ui.allToolbarPanels.itemById(FALLBACK_PANEL_ID)
+
         if panel:
+            _active_panel_id = panel.id
             existing = panel.controls.itemById(CMD_ID)
             if not existing:
                 panel.controls.addCommand(cmd_def)
@@ -47,15 +89,19 @@ def run(context):
 
 
 def stop(context):
-    global _handlers
+    global _handlers, _active_panel_id, _custom_panel_id
     try:
-        panel = _ui.allToolbarPanels.itemById(PANEL_ID)
-        if not panel:
-            panel = _ui.allToolbarPanels.itemById(FALLBACK_PANEL_ID)
-        if panel:
-            ctrl = panel.controls.itemById(CMD_ID)
-            if ctrl:
-                ctrl.deleteMe()
+        if _active_panel_id:
+            panel = _ui.allToolbarPanels.itemById(_active_panel_id)
+            if panel:
+                ctrl = panel.controls.itemById(CMD_ID)
+                if ctrl:
+                    ctrl.deleteMe()
+                # Remove the custom panel if no controls remain
+                if _custom_panel_id and _active_panel_id == _custom_panel_id and panel.controls.count == 0:
+                    panel.deleteMe()
+            _active_panel_id = None
+            _custom_panel_id = None
 
         cmd_def = _ui.commandDefinitions.itemById(CMD_ID)
         if cmd_def:

@@ -32,6 +32,26 @@ Then in Fusion 360:
 
 A **"Find Orphan Bodies"** button will appear in the **INSPECT** toolbar panel.
 
+## Configuration
+
+The add-in reads settings from `config.json` in the add-in directory. If the file is missing, defaults are used.
+
+```json
+{
+    "use_custom_panel": false,
+    "panel_id": "CustomPlugins_Panel",
+    "panel_name": "CUSTOM PLUGINS"
+}
+```
+
+| Setting | Default | Description |
+|---|---|---|
+| `use_custom_panel` | `false` | When `true`, creates a dedicated toolbar panel in the Solid tab instead of using the built-in Inspect panel. |
+| `panel_id` | `"Custom_Panel"` | Internal ID for the custom panel. |
+| `panel_name` | `"MY CUSTOM PLUGINS"` | Display name shown in the toolbar for the custom panel. |
+
+The `panel_id` and `panel_name` settings are only used when `use_custom_panel` is `true`. When `false`, the button appears in the Inspect panel as usual.
+
 ## Usage
 
 1. Click **"Find Orphan Bodies"** in the INSPECT panel
@@ -73,6 +93,7 @@ The body's position in 3D space is preserved — only its location in the browse
 FusionOrphanBodyFinder/
 ├── FusionOrphanBodyFinder.py        # Add-in source code
 ├── FusionOrphanBodyFinder.manifest  # Fusion 360 add-in manifest
+├── config.json                      # Optional panel configuration
 ├── resources/
 │   ├── 16x16.png                    # Toolbar icons
 │   ├── 32x32.png
