@@ -1,25 +1,23 @@
-# FusionOrphanBodyFinder
+# FusionTidy
 
-A Fusion 360 add-in that finds and fixes "orphan bodies" — loose BRepBodies sitting directly inside components that also contain subcomponents.
+A Fusion 360 add-in for cleaning up messy design trees. Finds orphan bodies, strips `.step` suffixes, removes special characters, and cleans version numbers from component and body names.
 
 ![Demo Gif](images/FusionOrphanBodyFinder-demo.gif)
 
-## The Problem
+## Why?
 
-In well-organized Fusion 360 designs, every "Body" lives inside its own component. But it's easy to accidentally leave bodies at the wrong level of the hierarchy — for example, a component that has both child subcomponents *and* direct bodies. These "orphan bodies" make it harder to manage visibility, materials, joints, and manufacturing outputs.
-
-This add-in scans your entire design tree, flags every component with orphan bodies, and offers to automatically wrap each one in its own new subcomponent.
+Imported STEP files and iterative design work leave behind a mess: bodies at the wrong level of the hierarchy, `.STEP` cluttering every name, stray special characters, leftover `v1`/`v2` version tags. FusionTidy walks your entire design tree and offers to fix each issue one at a time, so you stay in control.
 
 ## Installation
 
 **macOS:**
 ```
 cd ~/Library/Application\ Support/Autodesk/Autodesk\ Fusion\ 360/API/AddIns/
-git clone https://github.com/erikbuild/FusionOrphanBodyFinder.git
+git clone https://github.com/erikbuild/FusionTidy.git
 ```
 
 **Windows:**
-Download or clone this repository, then copy the `FusionOrphanBodyFinder` folder to your Fusion 360 add-ins directory:
+Download or clone this repository, then copy the `FusionTidy` folder to your Fusion 360 add-ins directory:
 ```
 %AppData%\Autodesk\Autodesk Fusion 360\API\AddIns\
 ```
@@ -28,9 +26,44 @@ Then in Fusion 360:
 
 1. Go to **UTILITIES > ADD-INS** (or press **Shift+S**)
 2. Select the **Add-Ins** tab
-3. Find **FusionOrphanBodyFinder** in the list and click **Run**
+3. Find **FusionTidy** in the list and click **Run**
 
-A **"Find Orphan Bodies"** button will appear in the **INSPECT** toolbar panel.
+A **"FusionTidy"** button will appear in the **INSPECT** toolbar panel.
+
+## Usage
+
+Click the **FusionTidy** button to open the options dialog. Each feature can be toggled independently — run them all at once or just the ones you need.
+
+### Orphan Bodies
+
+Finds components that contain both subcomponents and direct bodies. For each match, you can move the orphan bodies into their own new subcomponents.
+
+| Component contents | Flagged? |
+|---|---|
+| Only bodies, no subcomponents | No |
+| Only subcomponents, no bodies | No |
+| Both bodies and subcomponents | **Yes** |
+
+Options:
+- **Find Orphan Bodies** — Enable or disable the orphan body scan.
+- **Include Root Component** — Whether to check the top-level root component.
+
+For each flagged component, you'll be prompted:
+- **Yes** — Name each body and move it into a new child component.
+- **No** — Skip this component.
+- **Cancel** — Stop the scan.
+
+The body's position in 3D space is preserved — only its location in the browser tree changes.
+
+### Name Cleanup
+
+Three independent cleanup passes for component and body names:
+
+- **Clean .step from names** — Strips `.step` / `.STEP` / `.Step` from anywhere in the name. Prompts for each match with Yes/No/Cancel.
+- **Clean special characters** — Finds names with characters outside the allowed set (`a-z A-Z 0-9 - + ( ) [ ] # . _` and spaces). Prompts to rename with a suggested cleaned version, editable before confirming.
+- **Clean version numbers** — Finds `v1`, `V2`, `v12`, etc. (preceded by a space) and offers to strip them. Prompts with an editable suggested name.
+
+All three highlight the affected component in the browser tree as they go.
 
 ## Configuration
 
@@ -52,52 +85,18 @@ The add-in reads settings from `config.json` in the add-in directory. If the fil
 
 The `panel_id` and `panel_name` settings are only used when `use_custom_panel` is `true`. When `false`, the button appears in the Inspect panel as usual.
 
-## Usage
-
-1. Click **"Find Orphan Bodies"** in the INSPECT panel
-2. A dialog appears with a single option: **Include Root Component** (checked by default). Uncheck this if you want to ignore orphan bodies in the top-level root component. Click **OK**.
-3. The add-in scans every component in the design. For each component that has both child occurrences *and* direct bodies, you'll see a prompt:
-
-   > Component 'Bracket Assembly' contains 2 orphan bodies: [Body1, Body2]
-   >
-   > Move to new subcomponents?
-
-   - **Yes** — For each body, an input box lets you rename it (defaults to the parent component name). The body is then moved into a new child component with that name.
-   - **No** — Skip this component and move on to the next.
-   - **Cancel** — Stop the entire operation.
-
-4. When finished, a summary message shows how many bodies were moved across how many components.
-
-## What Gets Flagged
-
-| Component contents | Flagged? |
-|---|---|
-| Only bodies, no subcomponents | No |
-| Only subcomponents, no bodies | No |
-| Both bodies and subcomponents | **Yes** |
-
-## What "Fix" Does
-
-For each orphan body in a flagged component:
-
-1. Prompts you to name the body (and its new component)
-2. Creates a new child component with an identity transform
-3. Names the new component after your input
-4. Moves the body into the new component via `moveToComponent`
-
-The body's position in 3D space is preserved — only its location in the browser tree changes.
-
 ## Project Structure
 
 ```
-FusionOrphanBodyFinder/
-├── FusionOrphanBodyFinder.py        # Add-in source code
-├── FusionOrphanBodyFinder.manifest  # Fusion 360 add-in manifest
-├── config.json                      # Optional panel configuration
+FusionTidy/
+├── erikbuild-FusionTidy.py        # Add-in source code
+├── erikbuild-FusionTidy.manifest  # Fusion 360 add-in manifest
+├── config.json                    # Optional panel configuration
 ├── resources/
-│   ├── 16x16.png                    # Toolbar icons
+│   ├── 16x16.png                  # Toolbar icons
 │   ├── 32x32.png
 │   └── 64x64.png
+├── tests/                         # Unit tests
 ├── LICENSE
 └── README.md
 ```

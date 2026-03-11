@@ -1,0 +1,12 @@
+{
+    "autodeskProduct": "Fusion",
+    "type": "addin",
+    "id": "FusionTidy",
+    "author": "Erik Reynolds (erikbuild)",
+    "description": {
+        "": "Structural cleanup tools: find orphan bodies, clean .step suffixes, strip special characters, and remove version numbers from names."
+    },
+    "version": "1.0.0",
+    "runOnStartup": false,
+    "supportedOS": "windows|mac"
+}
