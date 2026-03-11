@@ -3,6 +3,7 @@ import adsk.fusion
 import traceback
 import json
 import os
+import re
 
 _app = None
 _ui = None
@@ -125,6 +126,7 @@ class CommandCreatedHandler(adsk.core.CommandCreatedEventHandler):
             cmd = args.command
             inputs = cmd.commandInputs
             inputs.addBoolValueInput('includeRoot', 'Include Root Component', True, '', True)
+            inputs.addBoolValueInput('cleanStepNames', 'Clean .step from names', True, '', False)
 
             on_execute = ExecuteHandler()
             cmd.execute.add(on_execute)
@@ -142,6 +144,7 @@ class ExecuteHandler(adsk.core.CommandEventHandler):
             cmd = args.command
             inputs = cmd.commandInputs
             include_root = inputs.itemById('includeRoot').value
+            clean_step = inputs.itemById('cleanStepNames').value
 
             design = adsk.fusion.Design.cast(_app.activeProduct)
             if not design:
@@ -149,59 +152,73 @@ class ExecuteHandler(adsk.core.CommandEventHandler):
                 return
 
             root_comp = design.rootComponent
-            orphans = find_orphan_components(root_comp, include_root)
-
-            if not orphans:
-                _ui.messageBox('No orphan bodies found.')
-                return
 
             total_bodies_moved = 0
             total_components_fixed = 0
+            orphans = find_orphan_components(root_comp, include_root)
 
-            cancelled = False
-            for entry in orphans:
-                comp = entry['component']
-                occ = entry['occurrence']
-                body_names = entry['body_names']
-                body_count = entry['body_count']
+            if orphans:
+                for entry in orphans:
+                    comp = entry['component']
+                    occ = entry['occurrence']
+                    body_names = entry['body_names']
+                    body_count = entry['body_count']
 
-                if occ:
-                    highlight_component(occ)
+                    if occ:
+                        highlight_component(occ)
 
-                msg = "Component '{}' contains {} orphan bod{}:\n[{}]\n\nMove to new subcomponents?".format(
-                    comp.name,
-                    body_count,
-                    'y' if body_count == 1 else 'ies',
-                    ', '.join(body_names)
-                )
+                    msg = "Component '{}' contains {} orphan bod{}:\n[{}]\n\nMove to new subcomponents?".format(
+                        comp.name,
+                        body_count,
+                        'y' if body_count == 1 else 'ies',
+                        ', '.join(body_names)
+                    )
 
-                result = _ui.messageBox(
-                    msg, 'Orphan Bodies Found',
-                    adsk.core.MessageBoxButtonTypes.YesNoCancelButtonType,
-                    adsk.core.MessageBoxIconTypes.QuestionIconType
-                )
+                    result = _ui.messageBox(
+                        msg, 'Orphan Bodies Found',
+                        adsk.core.MessageBoxButtonTypes.YesNoCancelButtonType,
+                        adsk.core.MessageBoxIconTypes.QuestionIconType
+                    )
 
-                if result == adsk.core.DialogResults.DialogCancel:
-                    cancelled = True
-                    break
+                    if result == adsk.core.DialogResults.DialogCancel:
+                        break
 
-                if result == adsk.core.DialogResults.DialogYes:
-                    moved = fix_component(comp, occ)
-                    total_bodies_moved += moved
-                    if moved > 0:
-                        total_components_fixed += 1
+                    if result == adsk.core.DialogResults.DialogYes:
+                        moved = fix_component(comp, occ)
+                        total_bodies_moved += moved
+                        if moved > 0:
+                            total_components_fixed += 1
 
             _ui.activeSelections.clear()
 
-            if total_bodies_moved > 0:
-                _ui.messageBox('Done. Moved {} bod{} across {} component{}.'.format(
-                    total_bodies_moved,
-                    'y' if total_bodies_moved == 1 else 'ies',
-                    total_components_fixed,
-                    '' if total_components_fixed == 1 else 's'
-                ))
+            total_step_renamed = 0
+            if clean_step:
+                total_step_renamed = clean_step_names(root_comp)
+
+            messages = []
+            if orphans:
+                if total_bodies_moved > 0:
+                    messages.append('Moved {} bod{} across {} component{}.'.format(
+                        total_bodies_moved,
+                        'y' if total_bodies_moved == 1 else 'ies',
+                        total_components_fixed,
+                        '' if total_components_fixed == 1 else 's'
+                    ))
+                else:
+                    messages.append('No bodies were moved.')
             else:
-                _ui.messageBox('No bodies were moved.')
+                messages.append('No orphan bodies found.')
+
+            if clean_step:
+                if total_step_renamed > 0:
+                    messages.append('Cleaned .step from {} name{}.'.format(
+                        total_step_renamed,
+                        '' if total_step_renamed == 1 else 's'
+                    ))
+                else:
+                    messages.append('No .step names found.')
+
+            _ui.messageBox('\n'.join(messages))
 
         except:
             _ui.messageBox('Execute failed:\n{}'.format(traceback.format_exc()))
@@ -272,3 +289,67 @@ def fix_component(component, occurrence):
 def highlight_component(occurrence):
     _ui.activeSelections.clear()
     _ui.activeSelections.add(occurrence)
+
+
+_STEP_PATTERN = re.compile(r'\.step', re.IGNORECASE)
+
+
+def strip_step_extension(name):
+    return _STEP_PATTERN.sub('', name)
+
+
+def has_step_extension(name):
+    return bool(_STEP_PATTERN.search(name))
+
+
+def find_step_names(root_comp):
+    results = []
+
+    def check_component(comp):
+        if has_step_extension(comp.name):
+            results.append({
+                'name': comp.name,
+                'kind': 'component',
+                'target': comp,
+            })
+        for body in comp.bRepBodies:
+            if has_step_extension(body.name):
+                results.append({
+                    'name': body.name,
+                    'kind': 'body',
+                    'target': body,
+                })
+
+    check_component(root_comp)
+    for occ in root_comp.allOccurrences:
+        check_component(occ.component)
+
+    return results
+
+
+def clean_step_names(root_comp):
+    entries = find_step_names(root_comp)
+    if not entries:
+        return 0
+
+    renamed = 0
+    for entry in entries:
+        old_name = entry['name']
+        new_name = strip_step_extension(old_name)
+        kind = entry['kind']
+
+        msg = "Rename {} '{}' to '{}'?".format(kind, old_name, new_name)
+        result = _ui.messageBox(
+            msg, 'Clean .step Names',
+            adsk.core.MessageBoxButtonTypes.YesNoCancelButtonType,
+            adsk.core.MessageBoxIconTypes.QuestionIconType
+        )
+
+        if result == adsk.core.DialogResults.DialogCancel:
+            break
+
+        if result == adsk.core.DialogResults.DialogYes:
+            entry['target'].name = new_name
+            renamed += 1
+
+    return renamed
