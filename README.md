@@ -1,8 +1,10 @@
 # FusionTidy
 
+![Version 1.1](https://img.shields.io/badge/version-1.1-blue)
+
 A Fusion 360 add-in for cleaning up messy design trees. Finds orphan bodies, strips `.step` suffixes, removes special characters, and cleans version numbers from component and body names.
 
-![Demo Gif](images/FusionOrphanBodyFinder-demo.gif)
+![Demo Gif](images/fusiontidy-FusionOrphanBodyFinder-demo.gif)
 
 ## Why?
 
@@ -57,13 +59,46 @@ The body's position in 3D space is preserved — only its location in the browse
 
 ### Name Cleanup
 
-Three independent cleanup passes for component and body names:
+Four independent cleanup passes for component and body names:
 
 - **Clean .step from names** — Strips `.step` / `.STEP` / `.Step` from anywhere in the name. Prompts for each match with Yes/No/Cancel.
 - **Clean special characters** — Finds names with characters outside the allowed set (`a-z A-Z 0-9 - + ( ) [ ] # . _` and spaces). Prompts to rename with a suggested cleaned version, editable before confirming.
 - **Clean version numbers** — Finds `v1`, `V2`, `v12`, etc. (preceded by a space) and offers to strip them. Prompts with an editable suggested name.
+- **Clean copy suffixes** — Strips trailing `(1)`, `(15) (1) (1)`, etc. from names. Prompts with an editable suggested name.
 
-All three highlight the affected component in the browser tree as they go.
+All four highlight the affected component in the browser tree as they go.
+
+### Demo
+
+A messy design tree with `.step` suffixes, special characters, version numbers, and copy suffixes — cleaned up in one pass:
+
+![Options dialog with messy tree](images/fusiontidy-demo1.png)
+
+**Step 1 — Clean .step from names:**
+
+![Clean .step prompt](images/fusiontidy-demo2.png)
+
+**Step 2 — Clean special characters:**
+
+![Clean special characters prompt](images/fusiontidy-demo3.png)
+
+![Editable rename dialog](images/fusiontidy-demo4.png)
+
+**Step 3 — Clean version numbers:**
+
+![Clean version numbers prompt](images/fusiontidy-demo5.png)
+
+![Editable rename dialog](images/fusiontidy-demo6.png)
+
+**Step 4 — Clean copy suffixes:**
+
+![Clean copy suffixes prompt](images/fusiontidy-demo7.png)
+
+![Editable rename dialog](images/fusiontidy-demo9.png)
+
+**Result:**
+
+![Cleaned design tree](images/fusiontidy-demo10.png)
 
 ## Configuration
 
